@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import math
 from scipy import stats
+from sklearn.metrics import davies_bouldin_score
 import streamlit as st
 
 import plotly.express as px
@@ -65,18 +66,27 @@ def main():
             st.session_state.data['NRT/Kode Pelaut'] = st.session_state.data['NRT/Kode Pelaut'].astype(str)
             st.session_state.data = st.session_state.data.drop(["Usia"], axis=1)
 
+            # st.session_state.data['Tanggal Lahir'] = pd.to_datetime(st.session_state.data['Tanggal Lahir'])
+            # st.session_state.data['Tanggal Transaksi'] = pd.to_datetime(st.session_state.data['Tanggal Transaksi'])
+
             st.session_state.data['Tanggal Lahir'] = st.session_state.data['Tanggal Lahir'].dt.date
             st.session_state.data['Tanggal Transaksi'] = st.session_state.data['Tanggal Transaksi'].dt.date
-            st.session_state.data['Tanggal Lahir'] = pd.to_datetime(st.session_state.data['Tanggal Lahir'])
-            st.session_state.data['Tanggal Transaksi'] = pd.to_datetime(st.session_state.data['Tanggal Transaksi'])
+            # st.session_state.data['Tanggal Lahir'] = pd.to_datetime(st.session_state.data['Tanggal Lahir'])
+            # st.session_state.data['Tanggal Transaksi'] = pd.to_datetime(st.session_state.data['Tanggal Transaksi'])
    
             #view
             st.dataframe(st.session_state.data)
+
+            st.session_state.data['Tanggal Lahir'] = pd.to_datetime(st.session_state.data['Tanggal Lahir'])
+            st.session_state.data['Tanggal Transaksi'] = pd.to_datetime(st.session_state.data['Tanggal Transaksi'])
+   
 
     if menu0 == "Analisis" and menu1 == "Pilih" and menu2 == "Pilih":
         # plot the number of customers each day
         fig = plt.figure(figsize=(15,5))
         df_sales_n_user=st.session_state.data.resample("D",on='Tanggal Transaksi')['NRT/Kode Pelaut'].nunique()
+        df_sales_n_user.rename('Jumlah Taruna/Alumni', inplace=True)
+        df_sales_n_user.index = [item.date() for item in df_sales_n_user.index]
 
         st.subheader("Jumlah Taruna / Alumnni")
         st.dataframe(df_sales_n_user)
@@ -84,8 +94,8 @@ def main():
         # Create  plot
         fig = px.line(df_sales_n_user,
             x = df_sales_n_user.index,
-            y = "NRT/Kode Pelaut",
-            title = f"Taruna/Alumni",
+            y = "Jumlah Taruna/Alumni",
+            title = f"Jumlah Taruna/Alumni",
             )
                     
         # Plot
@@ -113,6 +123,10 @@ def main():
 
         df_sales_p_day=st.session_state.data.resample('D',on='Tanggal Transaksi')['Nominal Transaksi'].sum()
         df_sales_spent=df_sales_p_day/df_sales_n_user
+        df_sales_spent.rename('Average Transaksi Per Alumni (Juta Rupiah)', inplace=True)
+        df_sales_spent.index = [item.date() for item in df_sales_spent.index]
+
+
 
         st.subheader("Average Biaya Diklat per Taruna atau Alumni")
         st.dataframe(df_sales_spent)
@@ -120,7 +134,7 @@ def main():
         # Create  plot
         fig = px.area(df_sales_spent,
             x = df_sales_spent.index,
-            y = 0,
+            y = "Average Transaksi Per Alumni (Juta Rupiah)",
             title = f"average biaya diklat/taruna atau alumni (Rp)",
             )
                     
@@ -427,6 +441,28 @@ def main():
             st.session_state.data_kmeans = df_ARFM3.copy(deep = True)
             st.session_state.data_kmeans = pd.concat([st.session_state.df_ARFM2[["NRT/Kode Pelaut"]], st.session_state.data_kmeans], axis=1)
             st.dataframe(st.session_state.data_kmeans)
+            
+            # Hitung Davies Bouldin Index
+            davies_bouldin_scores = []
+            for k in range(2, 5):
+                    km = KMeansClustering(X, num_clusters=k)
+                    labels = km.fit(X) # Labeling
+                    score = davies_bouldin_score(X, labels)
+                    davies_bouldin_scores.append(score)
+                
+            df_score = pd.DataFrame(
+                    {"Cluster": range(2, 5), 
+                    "Davies Score": davies_bouldin_scores
+                    }
+                                    )
+            # Create scatter plot
+            fig = px.line(df_score,
+                                x = "Cluster",
+                                y = "Davies Score",
+                                title = "Davies Bouldin Score")
+                                      
+            # Plot
+            st.plotly_chart(fig, use_container_width=True)
 
         if select == "KMEDOIDS" and butt_training:
             model = k_medoids(k=st.session_state.jumlah_cluster)
@@ -436,6 +472,29 @@ def main():
             st.session_state.data_kmedoids = df_ARFM3.copy(deep = True)
             st.session_state.data_kmedoids = pd.concat([st.session_state.df_ARFM2[["NRT/Kode Pelaut"]], st.session_state.data_kmedoids], axis=1)
             st.dataframe(st.session_state.data_kmedoids)
+
+            # Hitung Davies Bouldin Index
+            davies_bouldin_scores = []
+            for k in range(2, 5):
+                    kmed = k_medoids(k=k)
+                    kmed.fit(X)
+                    labels = kmed.predict(X) # Labeling
+                    score = davies_bouldin_score(X, labels)
+                    davies_bouldin_scores.append(score)
+                
+            df_score = pd.DataFrame(
+                    {"Cluster": range(2, 5), 
+                    "Davies Score": davies_bouldin_scores
+                    }
+                                    )
+            # Create scatter plot
+            fig = px.line(df_score,
+                                x = "Cluster",
+                                y = "Davies Score",
+                                title = "Davies Bouldin Score")
+            
+            # Plot
+            st.plotly_chart(fig, use_container_width=True)
 
     if menu0 == "Pilih" and menu1 == "Pilih" and menu2 == "Hasil Cluster":
         meth = st.selectbox("Pilih Method", ["KMEANS", "KMEDOIDS"])
