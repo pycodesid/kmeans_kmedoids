@@ -105,6 +105,7 @@ def main():
         a=st.session_state.data.resample('M',on='Tanggal Transaksi')['Nominal Transaksi'].sum().to_frame()
         a['month']=['Jun','Jul','Aug',"Sep", "Oct", "Nov", "Dec", "Jan\n2023", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"]
         a['Nominal Transaksi']=a['Nominal Transaksi']/1000000
+        a.index = [item.date() for item in a.index]
 
         st.subheader("Nominal Transaksi")
         st.dataframe(a)
